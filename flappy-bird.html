@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flappy Bird</title>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h2 id="score">Score: 0</h2>
+        <h2 id="highScore">High Score: 0</h2>
+        <canvas id="gameCanvas" width="400" height="600" style="border: 2px solid black;"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('highScore');
+
+        // Load high score from localStorage
+        let highScore = localStorage.getItem('flappyBirdHighScore') || 0;
+        highScoreElement.textContent = `High Score: ${highScore}`;
+
+        // Game variables
+        let score = 0;
+        const bird = {
+            x: 50,
+            y: 300,
+            velocity: 0,
+            gravity: 0.3,
+            jump: -6,
+            size: 20
+        };
+
+        const pipes = [];
+        const pipeWidth = 50;
+        const pipeGap = 150;
+        const pipeSpacing = 200;
+        let gameOver = false;
+        let frameCount = 0;
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                if (gameOver) {
+                    resetGame();
+                } else {
+                    bird.velocity = bird.jump;
+                }
+            }
+        });
+
+        canvas.addEventListener('click', () => {
+            if (gameOver) {
+                resetGame();
+            } else {
+                bird.velocity = bird.jump;
+            }
+        });
+
+        function updateHighScore() {
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('flappyBirdHighScore', highScore);
+                highScoreElement.textContent = `High Score: ${highScore}`;
+                return true;
+            }
+            return false;
+        }
+
+        function resetGame() {
+            bird.y = 300;
+            bird.velocity = 0;
+            pipes.length = 0;
+            score = 0;
+            gameOver = false;
+            scoreElement.textContent = `Score: ${score}`;
+        }
+
+        function createPipe() {
+            const minHeight = 50;
+            const maxHeight = canvas.height - pipeGap - minHeight;
+            const height = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+
+            pipes.push({
+                x: canvas.width,
+                height: height,
+                scored: false
+            });
+        }
+
+        function drawBird() {
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(bird.x, bird.y, bird.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawPipes() {
+            ctx.fillStyle = '#3CB371';
+            pipes.forEach(pipe => {
+                // Draw top pipe
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.height);
+                // Draw bottom pipe
+                ctx.fillRect(
+                    pipe.x,
+                    pipe.height + pipeGap,
+                    pipeWidth,
+                    canvas.height - (pipe.height + pipeGap)
+                );
+            });
+        }
+
+        function checkCollision(pipe) {
+            const birdRight = bird.x + bird.size;
+            const birdLeft = bird.x - bird.size;
+            const birdTop = bird.y - bird.size;
+            const birdBottom = bird.y + bird.size;
+            const pipeRight = pipe.x + pipeWidth;
+            const pipeLeft = pipe.x;
+
+            if (birdRight > pipeLeft && birdLeft < pipeRight) {
+                if (birdTop < pipe.height || birdBottom > pipe.height + pipeGap) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateGame() {
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '30px Arial';
+                ctx.fillText('Game Over!', canvas.width/2 - 70, canvas.height/2);
+                
+                // Show if new high score was achieved
+                if (updateHighScore()) {
+                    ctx.fillText('New High Score!', canvas.width/2 - 100, canvas.height/2 - 40);
+                }
+                
+                ctx.font = '20px Arial';
+                ctx.fillText('Click or press Space to restart', canvas.width/2 - 100, canvas.height/2 + 40);
+                return;
+            }
+
+            frameCount++;
+            if (frameCount % pipeSpacing === 0) {
+                createPipe();
+            }
+
+            // Update bird
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+
+            // Update pipes
+            pipes.forEach(pipe => {
+                pipe.x -= 2;
+
+                // Score when passing pipe
+                if (!pipe.scored && pipe.x + pipeWidth < bird.x) {
+                    score++;
+                    scoreElement.textContent = `Score: ${score}`;
+                    pipe.scored = true;
+                }
+
+                // Check collision
+                if (checkCollision(pipe)) {
+                    gameOver = true;
+                }
+            });
+
+            // Remove off-screen pipes
+            while (pipes.length > 0 && pipes[0].x + pipeWidth < 0) {
+                pipes.shift();
+            }
+
+            // Check boundaries
+            if (bird.y < 0 || bird.y > canvas.height) {
+                gameOver = true;
+            }
+
+            // Clear canvas
+            ctx.fillStyle = '#87CEEB';  // Sky blue background
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw game elements
+            drawPipes();
+            drawBird();
+        }
+
+        // Start game loop
+        setInterval(updateGame, 1000/60);
+    </script>
+</body>
+</html>
